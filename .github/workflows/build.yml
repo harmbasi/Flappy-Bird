@@ -1,0 +1,43 @@
+name: Build Flappy3D for Trimui
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-arm64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Compiler and SDL2
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libsdl2-dev:arm64
+          
+      - name: Compile Game
+        run: |
+          aarch64-linux-gnu-gcc flappy3d.c -O2 -Wall -lSDL2 -lm -o flappy3d
+          
+      - name: Package for Trimui OS
+        run: |
+          mkdir Flappy3D
+          mv flappy3d Flappy3D/
+          
+          # Create launcher script exactly as required by Stock OS/MinUI
+          cat << 'EOF' > Flappy3D/launch.sh
+          #!/bin/sh
+          DIR="$(dirname "$0")"
+          cd "$DIR"
+          export LD_LIBRARY_PATH="/usr/lib:/usr/local/lib:/usr/lib32:$LD_LIBRARY_PATH"
+          ./flappy3d
+          EOF
+          chmod +x Flappy3D/launch.sh Flappy3D/flappy3d
+          
+      - name: Upload Playable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Flappy3D
+          path: Flappy3D/*
